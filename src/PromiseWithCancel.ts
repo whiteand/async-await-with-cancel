@@ -1,8 +1,18 @@
 import {autorun, IObservableValue, observable} from 'mobx';
 
-function runWithCancel(fn: Function, ...args: any)
+type functionArgs<U extends unknown[]> = (...args: U) => IterableIterator<unknown>;
+
+function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args: T)
 {
-    const gen = fn(...args);
+    const gen: IterableIterator<unknown> = fn(...args);
+    gen.throw = (err?: unknown) =>
+    {
+        return {
+            done: false,
+            value: `error = ${err}`
+        };
+    };
+
     let cancelled: boolean = false;
     let cancel: IObservableValue<(() => void) | null> = observable.box(null);
 
@@ -15,7 +25,8 @@ function runWithCancel(fn: Function, ...args: any)
 
         onFulfilled();
 
-        function onFulfilled(res?: any) {
+        function onFulfilled<U>(res?: U)
+        {
             if (!cancelled) {
                 let result;
                 try {
@@ -28,23 +39,33 @@ function runWithCancel(fn: Function, ...args: any)
             }
         }
 
-        function onRejected(err: any) {
+        function onRejected(err: any)
+        {
             let result;
             try {
-                result = gen.throw(err);
+                // assert(gen.throw);
+                result = (gen.throw as ((e?: any) => IteratorResult<T>))(err);
             } catch (e) {
                 return reject(e);
             }
             next(result);
         }
 
-        function next({ done, value } : {done: any, value: any}) {
+        function next({done, value} : {done: boolean, value: unknown})
+        {
             if (done)
                 return resolve(value);
-            return Promise.resolve(value).then(onFulfilled, onRejected);
+            return Promise.resolve(value).then(<U>(res: U) =>
+            {
+                onFulfilled(res);
+            }, <U>(res: U) =>
+            {
+                onRejected(res);
+            });
         }
 
     });
+
     autorun(() =>
     {
         promise.cancelFunc.set(cancel.get());
