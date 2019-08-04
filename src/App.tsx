@@ -4,7 +4,10 @@ import {runWithCancel} from './PromiseWithCancel';
 class App extends React.Component {
 
     public componentDidMount() {
-        this.didMount_();
+        let promise = runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
+        setTimeout(() => promise.cancel(), 3000);
+
+        return promise;
     }
 
     public render() {
@@ -36,13 +39,6 @@ class App extends React.Component {
         yield* this.doTask2();
         yield* this.doTask3();
         console.log(`here we finish = ${finalString}`);
-    }
-
-    private didMount_() {
-        let promise = runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
-        setTimeout(() => promise.cancel(), 3000);
-
-        return promise;
     }
 
     private simpleTimeoutPromise(n: number): Promise<number> {
