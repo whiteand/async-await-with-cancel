@@ -5,16 +5,13 @@ import {runWithCancel} from './PromiseWithCancel';
 class App extends React.Component {
 
     public componentDidMount() {
-        this.didMount_().then(() => {
-            // finished
-        });
+        this.didMount_();
     }
 
     public render() {
         return (
             <React.Fragment>
-                <h1>Code start</h1>
-                <h1>Code end</h1>
+                <h1>Open console and look for example!</h1>
             </React.Fragment>
         );
     }
@@ -59,14 +56,6 @@ class App extends React.Component {
         })
     }
 }
-
-
-
-
-
-
-
-///////////////////////////////
 
 export default App;
 
