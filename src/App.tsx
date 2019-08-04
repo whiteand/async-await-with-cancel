@@ -1,13 +1,11 @@
 import React from 'react';
-import {runWithCancel} from './PromiseWithCancel';
+import {runWithCancel, SPromise} from './PromiseWithCancel';
 
 class App extends React.Component {
 
     public componentDidMount() {
-        let promise = runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
-        setTimeout(() => promise.cancel(), 3000);
-
-        return promise;
+        runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
+        // setTimeout(() => promise.cancel(), 5000);
     }
 
     public render() {
@@ -24,8 +22,12 @@ class App extends React.Component {
     }
 
     private* doTask2(): IterableIterator<Promise<number>> {
-        yield this.simpleTimeoutPromise(3);
-        yield this.simpleTimeoutPromise(4);
+        yield this.simpleTimeoutPromise(10);
+        yield this.simpleTimeoutPromise(20);
+        yield this.simpleTimeoutPromise(30);
+        yield this.simpleTimeoutPromise(40);
+        yield this.simpleTimeoutPromise(50);
+        yield this.simpleTimeoutPromise(60);
     }
 
     private* doTask3(): IterableIterator<Promise<number>> {
@@ -36,7 +38,7 @@ class App extends React.Component {
     private* doAllTasks(startString: string, finalString: string): IterableIterator<any> {
         console.log(`here we start = ${startString}`);
         yield* this.doTask1();
-        yield* this.doTask2();
+        yield this.doSomething(this.doTask2.bind(this));
         yield* this.doTask3();
         console.log(`here we finish = ${finalString}`);
     }
@@ -48,6 +50,15 @@ class App extends React.Component {
                 resolve(n);
             }, 1000);
         })
+    }
+
+    private doSomething(fn: any, ...args: any)
+    {
+        let promise = runWithCancel(fn, args);
+
+        setTimeout(() => promise.cancel(), 4000);
+
+        return promise;
     }
 }
 
