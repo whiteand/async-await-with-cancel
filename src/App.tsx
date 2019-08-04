@@ -42,7 +42,7 @@ class App extends React.Component {
     private didMount_() {
         this.doAllTasks = this.doAllTasks.bind(this);
         let promise = runWithCancel(this.doAllTasks, 'start!', 'finish!');
-        promise.cancel();
+        setTimeout(() => promise.cancel(), 3000);
 
         return promise;
     }
