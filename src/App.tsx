@@ -1,5 +1,4 @@
 import React from 'react';
-import './App.css';
 import {runWithCancel} from './PromiseWithCancel';
 
 class App extends React.Component {
@@ -31,7 +30,7 @@ class App extends React.Component {
         yield this.simpleTimeoutPromise(6);
     }
 
-    private* doAllTasks(startString: string, finalString: string) {
+    private* doAllTasks(startString: string, finalString: string): IterableIterator<any> {
         console.log(`here we start = ${startString}`);
         yield* this.doTask1();
         yield* this.doTask2();
@@ -40,8 +39,7 @@ class App extends React.Component {
     }
 
     private didMount_() {
-        this.doAllTasks = this.doAllTasks.bind(this);
-        let promise = runWithCancel(this.doAllTasks, 'start!', 'finish!');
+        let promise = runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
         setTimeout(() => promise.cancel(), 3000);
 
         return promise;

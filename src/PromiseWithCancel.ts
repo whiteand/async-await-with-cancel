@@ -2,7 +2,7 @@ import {autorun, IObservableValue, observable} from 'mobx';
 
 type functionArgs<U extends unknown[]> = (...args: U) => IterableIterator<unknown>;
 
-function runWithCancel<T extends unknown[], K>(fn: functionArgs<T>, ...args: T): SPromise<unknown>
+export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args: T): SPromise<unknown>
 {
     const gen: IterableIterator<unknown> = fn(...args);
     gen.throw = (err?: unknown) =>
@@ -16,13 +16,16 @@ function runWithCancel<T extends unknown[], K>(fn: functionArgs<T>, ...args: T):
     let cancelled: boolean = false;
     let cancel: IObservableValue<(() => void) | null> = observable.box(null);
 
-    const promise = new SPromise<unknown>((resolve, reject) => {
-        // set cancel function to return it from our fn
+    const promise = new SPromise<unknown>((resolve, reject) =>
+    {
+        // Set cancel function to return it from our fn
         cancel.set(() => {
             cancelled = true;
             reject({ reason: 'cancelled' });
         });
 
+
+        // The first run of the onFulfilled function.
         onFulfilled();
 
         function onFulfilled<U>(res?: U)
@@ -48,7 +51,8 @@ function runWithCancel<T extends unknown[], K>(fn: functionArgs<T>, ...args: T):
 
         function onRejected(err: any)
         {
-            let result;
+            let result: IteratorResult<unknown>;
+
             try
             {
                 // assert(gen.throw);
@@ -62,10 +66,13 @@ function runWithCancel<T extends unknown[], K>(fn: functionArgs<T>, ...args: T):
             next(result);
         }
 
+
+        // Here we resolve promise and recursively run onFulfilled/onRejected again
         function next({done, value} : {done: boolean, value: unknown})
         {
             if (done)
                 return resolve(value);
+
             return Promise.resolve(value).then(<U>(res: U) =>
             {
                 onFulfilled(res);
@@ -90,16 +97,21 @@ export class SPromise<T> extends Promise<T>
 
     public cancel()
     {
+        let toDispose: boolean = false;
+        let firstRun: boolean = true;
         let disposer = autorun(() =>
         {
             if(this.cancelFunc.get())
             {
                 (this.cancelFunc.get() as () => void)();
-                disposer();
+                toDispose = true;
+                if (!firstRun)
+                    disposer();
             }
-
-        })
+            firstRun = false;
+        });
+        if (toDispose)
+            disposer();
     }
 }
 
-export {runWithCancel};
