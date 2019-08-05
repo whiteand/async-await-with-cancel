@@ -1,12 +1,9 @@
-import {autorun, IObservableValue, observable, runInAction} from 'mobx';
-
 type functionArgs<U extends unknown[]> = (...args: U) => IterableIterator<unknown>;
 
 export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args: T): SPromise<unknown>
 {
     const gen: IterableIterator<unknown> = fn(...args);
-    gen.throw = (err?: unknown) =>
-    {
+    gen.throw = (err?: unknown) => {
         return {
             done: false,
             value: `error = ${err}`
@@ -14,19 +11,15 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
     };
 
     let cancelled: boolean = false;
-    let cancel: IObservableValue<(() => void) | null> = observable.box(null);
+    let cancel: (() => void) | null = null;
 
     const promise = new SPromise<unknown>((resolve, reject) =>
     {
         // Set cancel function to return it from our fn
-        runInAction(() =>
-        {
-            cancel.set(() => {
-                cancelled = true;
-                reject({ reason: 'cancelled' });
-            });
-        });
-
+        cancel = () => {
+            cancelled = true;
+            reject({reason: 'cancelled'});
+        };
 
 
         // The first run of the onFulfilled function.
@@ -34,16 +27,12 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
 
         function onFulfilled<U>(res?: U)
         {
-            if (!cancelled)
-            {
+            if (!cancelled) {
                 let result: IteratorResult<unknown>;
 
-                try
-                {
+                try {
                     result = gen.next(res);
-                }
-                catch (e)
-                {
+                } catch (e) {
                     return reject(e);
                 }
 
@@ -57,13 +46,10 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
         {
             let result: IteratorResult<unknown>;
 
-            try
-            {
+            try {
                 // assert(gen.throw);
                 result = (gen.throw as ((e?: any) => IteratorResult<T>))(err);
-            }
-            catch (e)
-            {
+            } catch (e) {
                 return reject(e);
             }
 
@@ -72,56 +58,32 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
 
 
         // Here we resolve promise and recursively run onFulfilled/onRejected again
-        function next({done, value} : {done: boolean, value: unknown})
+        function next({done, value}: { done: boolean, value: unknown })
         {
             if (done)
                 return resolve(value);
 
-            return Promise.resolve(value).then(<U>(res: U) =>
-            {
+            return Promise.resolve(value).then(<U>(res: U) => {
                 onFulfilled(res);
-            }, <U>(res: U) =>
-            {
+            }, <U>(res: U) => {
                 onRejected(res);
             });
         }
     });
 
-    autorun(() =>
-    {
-        if (cancel.get())
-        {
-            runInAction(() =>
-            {
-                promise.cancelFunc.set(cancel.get());
-            });
-        }
-    });
+    promise.cancelFunc = cancel;
 
     return promise;
 }
 
 export class SPromise<T> extends Promise<T>
 {
-    public cancelFunc: IObservableValue<(() => void) | null> = observable.box(null);
+    public cancelFunc: (() => void) | null = null;
 
     public cancel()
     {
-        let toDispose: boolean = false;
-        let firstRun: boolean = true;
-        let disposer = autorun(() =>
-        {
-            if(this.cancelFunc.get())
-            {
-                (this.cancelFunc.get() as () => void)();
-                toDispose = true;
-                if (!firstRun)
-                    disposer();
-            }
-            firstRun = false;
-        });
-        if (toDispose)
-            disposer();
+        if (!this.cancelFunc) throw new Error('SPromise can only be used with runWithCancel');
+        this.cancelFunc();
     }
 }
 
