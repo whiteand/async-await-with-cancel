@@ -1,7 +1,12 @@
 import React from 'react';
 import {runWithCancel} from './PromiseWithCancel';
+import {configure, observable, runInAction} from 'mobx';
+
+configure({enforceActions: 'always'});
 
 class App extends React.Component {
+
+    @observable private someNumber: number = 5;
 
     public componentDidMount() {
         let promise = runWithCancel(this.doAllTasks.bind(this), 'start!', 'finish!');
@@ -44,7 +49,11 @@ class App extends React.Component {
     private simpleTimeoutPromise(n: number): Promise<number> {
         return new Promise<number>((resolve) => {
             setTimeout(() => {
-                console.log(n);
+                runInAction(() =>
+                {
+                    this.someNumber = n;
+                    console.log(`someNumber = ${this.someNumber}`);
+                });
                 resolve(n);
             }, 1000);
         })

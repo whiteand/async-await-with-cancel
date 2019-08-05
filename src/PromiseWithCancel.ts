@@ -1,4 +1,4 @@
-import {autorun, IObservableValue, observable} from 'mobx';
+import {autorun, IObservableValue, observable, runInAction} from 'mobx';
 
 type functionArgs<U extends unknown[]> = (...args: U) => IterableIterator<unknown>;
 
@@ -19,10 +19,14 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
     const promise = new SPromise<unknown>((resolve, reject) =>
     {
         // Set cancel function to return it from our fn
-        cancel.set(() => {
-            cancelled = true;
-            reject({ reason: 'cancelled' });
+        runInAction(() =>
+        {
+            cancel.set(() => {
+                cancelled = true;
+                reject({ reason: 'cancelled' });
+            });
         });
+
 
 
         // The first run of the onFulfilled function.
@@ -85,7 +89,13 @@ export function runWithCancel<T extends unknown[]>(fn: functionArgs<T>, ...args:
 
     autorun(() =>
     {
-        promise.cancelFunc.set(cancel.get());
+        if (cancel.get())
+        {
+            runInAction(() =>
+            {
+                promise.cancelFunc.set(cancel.get());
+            });
+        }
     });
 
     return promise;
